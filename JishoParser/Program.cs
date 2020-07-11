@@ -115,6 +115,93 @@ namespace JishoParser
                 }
                 File.WriteAllText("result.txt", JsonConvert.SerializeObject(words));
             }
+            else if (str == "3")
+            {
+                var lines = File.ReadAllLines("sentences.txt");
+                var final = lines.ToArray();
+                List<SentenceInfo> sentences = new List<SentenceInfo>();
+                for (int i = 0; i < final.Length; i += 2)
+                {
+                    string[] l = final[i].Substring(3).Split('	');
+                    string help = final[i + 1].Substring(3);
+                    List <SentenceWordInfo> words = new List<SentenceWordInfo>();
+                    string[] particles = new[] { "の", "を", "に", "で", "と", "も", "か", "は", "が", "から", "まで", "へ" };
+                    char[] punctuation = new[] { '。', '、', '？', '！', '「', '」', '０', '１', '２', '３', '９' };
+                    string curr = l[0];
+                    int particleCount = 0;
+                    Console.Write("\rParsing " + curr);
+                    foreach (string s in help.Split(' ').Select(x => x.Replace("~", "")))
+                    {
+                        string p = "";
+                        while (curr.Length > 0 && punctuation.Contains(curr[0]))
+                        {
+                            p += curr[0];
+                            curr = curr.Substring(1);
+                        }
+                        if (p != "")
+                        {
+                            words.Add(new SentenceWordInfo
+                            {
+                                word = p,
+                                isParticle = false
+                            });
+                        }
+                        if (curr.Length == 0)
+                            break;
+                        bool isParticle;
+                        string word;
+                        if (particles.Contains(s))
+                        {
+                            word = s;
+                            isParticle = true;
+                            particleCount++;
+                        }
+                        else
+                        {
+                            isParticle = false;
+                            var m = Regex.Match(s, "{([^}]+)}");
+                            if (m.Success)
+                            {
+                                word = m.Groups[1].Value;
+                            }
+                            else
+                            {
+                                word = s;
+                                m = Regex.Match(word, "\\([^}]+\\)");
+                                if (m.Success) word = word.Replace(m.Value, "");
+                                m = Regex.Match(word, "\\[[0-9]+\\]");
+                                if (m.Success) word = word.Replace(m.Value, "");
+                            }
+                        }
+                        words.Add(new SentenceWordInfo
+                        {
+                            word = word,
+                            isParticle = isParticle
+                        });
+                        if (!curr.StartsWith(word))
+                        {
+                            Console.WriteLine("Error while parsing " + curr + ", can't find " + word);
+                            goto next;
+                        }
+                        curr = curr.Substring(word.Length);
+                    }
+                    if (particleCount == 0)
+                    {
+                        Console.WriteLine("No particle found in " + l[0]);
+                    }
+                    else
+                    {
+                        sentences.Add(new SentenceInfo
+                        {
+                            meaning = l[1].Split('#')[0],
+                            words = words.ToArray(),
+                            particleCount = particleCount
+                        });
+                    }
+                next:;
+                }
+                File.WriteAllText("result.txt", JsonConvert.SerializeObject(sentences));
+            }
             else
                 throw new ArgumentException();
             Console.WriteLine("Done");
@@ -135,6 +222,19 @@ namespace JishoParser
             public string word;
             public string[] meaning;
             public string reading;
+        }
+
+        public class SentenceInfo
+        {
+            public SentenceWordInfo[] words;
+            public string meaning;
+            public int particleCount;
+        }
+
+        public class SentenceWordInfo
+        {
+            public string word;
+            public bool isParticle; // 0: particle, 1: other
         }
     }
 }
