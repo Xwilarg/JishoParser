@@ -96,7 +96,12 @@ namespace JishoParser
                             words.Add(new WordInfo
                             {
                                 word = j.slug,
-                                meaning = meaning.ToArray(),
+                                meaning = meaning.Select(x =>
+                                {
+                                    var toRemove = Regex.Replace(x, "[^(]+(\\(.+\\))", "$1");
+                                    var final = x.Replace(toRemove, "").Trim();
+                                    return final == "" ? x : final;
+                                }).ToArray(),
                                 reading = reading
                             });
                         }
