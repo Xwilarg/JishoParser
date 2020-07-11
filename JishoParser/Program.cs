@@ -85,6 +85,7 @@ namespace JishoParser
                                 if (r.word == elem)
                                 {
                                     reading = r.reading;
+                                    break;
                                 }
                             }
                             if (reading == null)
