@@ -93,9 +93,14 @@ namespace JishoParser
                                 Console.WriteLine("Invalid reading: " + elem);
                                 continue;
                             }
+                            string slug = j.slug;
+                            for (int I = 0; I < 10; I++)
+                            {
+                                slug = slug.Replace("-" + I, "");
+                            }
                             words.Add(new WordInfo
                             {
-                                word = j.slug,
+                                word = slug,
                                 meaning = meaning.Select(x =>
                                 {
                                     var toRemove = Regex.Replace(x, "[^(]+(\\(.+\\))", "$1");
