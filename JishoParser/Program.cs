@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace JishoParser
 {
@@ -17,27 +18,60 @@ namespace JishoParser
             string str = Console.ReadLine();
             if (str == "1")
             {
-                if (!File.Exists("kanjis.txt"))
-                    throw new FileNotFoundException();
+                Console.WriteLine("Enter jlpt level");
+                List<WordInfo> words = new List<WordInfo>();
+                string lvl = Console.ReadLine();
+                int i = 1;
                 Directory.CreateDirectory("img");
                 var content = File.ReadAllText("kanjis.txt").ToCharArray();
                 List<KanjiInfo> kanjis = new List<KanjiInfo>();
                 using (HttpClient hc = new HttpClient())
                 {
-                    foreach (var elem in content)
+                    while (true)
                     {
-                        Console.Write("\rParsing " + elem);
-                        string html = hc.GetStringAsync("https://jisho.org/search/" + elem + "%20%23kanji").GetAwaiter().GetResult();
-                        var kunyomi = !html.Contains("<dt>Kun:") ? new string[0] : Regex.Matches(html.Split(new[] { "<dt>Kun:" }, StringSplitOptions.None)[1].Split(new string[] { "</dd>" }, StringSplitOptions.None)[0], "<a[^>]+>([^<]+)<\\/a>").Cast<Match>().Select(x => x.Groups[1].Value).ToArray();
-                        kanjis.Add(new KanjiInfo
+                        string html;
+                        while (true)
                         {
-                            kanji = elem + (kunyomi.Length > 1 && kunyomi[0].Contains(".") ? kunyomi[0].Split('.')[1] : ""),
-                            meaning = Regex.Match(html, "<div class=\"kanji-details__main-meanings\">([^<]+)<\\/div>").Groups[1].Value.Trim().Split(", "),
-                            onyomi = !html.Contains("<dt>On:") ? new string[0] : Regex.Matches(html.Split(new[] { "<dt>On:" }, StringSplitOptions.None)[1].Split(new[] { "</dd>" }, StringSplitOptions.None)[0], "<a[^>]+>([^<]+)<\\/a>").Cast<Match>().Select(x => x.Groups[1].Value).ToArray(),
-                            kunyomi = kunyomi,
-                            imageId = ((int)elem).ToString()
-                        });
-                        File.WriteAllBytes("img/" + ((int)elem).ToString() + ".png", hc.GetByteArrayAsync("http://classic.jisho.org/static/images/stroke_diagrams/" + (int)elem + "_frames.png").GetAwaiter().GetResult());
+                            try
+                            {
+                                html = hc.GetStringAsync("https://jisho.org/search/%23jlpt-n" + lvl + "%23kanji?page=" + i).GetAwaiter().GetResult();
+                                break;
+                            }
+                            catch (HttpRequestException)
+                            { }
+                            catch (TaskCanceledException)
+                            { }
+                        }
+                        var coll = Regex.Matches(html, "<a href=\"\\/\\/jisho\\.org\\/search\\/[^k]+kanji\">([^<])<\\/a>");
+                        if (coll.Count == 0)
+                            break;
+                        foreach (var elem in coll.Cast<Match>().Select(x => x.Groups[1].Value[0]))
+                        {
+                            Console.Write("\rParsing " + elem);
+                            html = hc.GetStringAsync("https://jisho.org/search/" + elem + "%20%23kanji").GetAwaiter().GetResult();
+                            var kunyomi = !html.Contains("<dt>Kun:") ? new string[0] : Regex.Matches(html.Split(new[] { "<dt>Kun:" }, StringSplitOptions.None)[1].Split(new string[] { "</dd>" }, StringSplitOptions.None)[0], "<a[^>]+>([^<]+)<\\/a>").Cast<Match>().Select(x => x.Groups[1].Value).ToArray();
+                            kanjis.Add(new KanjiInfo
+                            {
+                                kanji = elem + (kunyomi.Length > 1 && kunyomi[0].Contains(".") ? kunyomi[0].Split('.')[1] : ""),
+                                meaning = Regex.Match(html, "<div class=\"kanji-details__main-meanings\">([^<]+)<\\/div>").Groups[1].Value.Trim().Split(", "),
+                                onyomi = !html.Contains("<dt>On:") ? new string[0] : Regex.Matches(html.Split(new[] { "<dt>On:" }, StringSplitOptions.None)[1].Split(new[] { "</dd>" }, StringSplitOptions.None)[0], "<a[^>]+>([^<]+)<\\/a>").Cast<Match>().Select(x => x.Groups[1].Value).ToArray(),
+                                kunyomi = kunyomi,
+                                imageId = ((int)elem).ToString()
+                            });
+                            while (true)
+                            {
+                                try
+                                {
+                                    File.WriteAllBytes("img/" + ((int)elem).ToString() + ".png", hc.GetByteArrayAsync("http://classic.jisho.org/static/images/stroke_diagrams/" + (int)elem + "_frames.png").GetAwaiter().GetResult());
+                                    break;
+                                }
+                                catch (HttpRequestException)
+                                { }
+                                catch (TaskCanceledException)
+                                { }
+                            }
+                        }
+                        i++;
                     }
                 }
                 File.WriteAllText("result.txt", JsonConvert.SerializeObject(kanjis));
@@ -52,7 +86,19 @@ namespace JishoParser
                 {
                     using (HttpClient hc = new HttpClient())
                     {
-                        string html = hc.GetStringAsync("https://jisho.org/search/%23jlpt-n" + lvl + "?page=" + i).GetAwaiter().GetResult();
+                        string html;
+                        while (true)
+                        {
+                            try
+                            {
+                                html = hc.GetStringAsync("https://jisho.org/search/%23jlpt-n" + lvl + "?page=" + i).GetAwaiter().GetResult();
+                                break;
+                            }
+                            catch (HttpRequestException)
+                            { }
+                            catch (TaskCanceledException)
+                            { }
+                        }
                         var coll = Regex.Matches(html, "<span class=\"text\">([^<]+)<\\/span>");
                         if (coll.Count == 0)
                             break;
@@ -118,7 +164,7 @@ namespace JishoParser
             else if (str == "3")
             {
                 var lines = File.ReadAllLines("sentences.txt");
-                var final = lines.ToArray();
+                var final = lines.Take(1000).ToArray();
                 List<SentenceInfo> sentences = new List<SentenceInfo>();
                 for (int i = 0; i < final.Length; i += 2)
                 {
