@@ -81,6 +81,9 @@ namespace JishoParser
                 Console.WriteLine("Enter jlpt level");
                 List<WordInfo> words = new List<WordInfo>();
                 string lvl = Console.ReadLine();
+                Console.WriteLine("Only get nouns: [Y/N]");
+                var output = Console.ReadLine();
+                bool onlyNouns = output == "Y" || output == "y";
                 int i = 1;
                 while (true)
                 {
@@ -124,8 +127,11 @@ namespace JishoParser
                             string reading = null;
                             foreach (var m in j.senses)
                             {
-                                meaning.AddRange(((JArray)m.english_definitions).ToObject<string[]>());
+                                if (!onlyNouns || ((JArray)m.parts_of_speech).ToObject<string[]>().Contains("Noun"))
+                                    meaning.AddRange(((JArray)m.english_definitions).ToObject<string[]>());
                             }
+                            if (meaning.Count == 0)
+                                continue;
                             foreach (var r in j.japanese)
                             {
                                 if (r.word == elem)
@@ -159,7 +165,11 @@ namespace JishoParser
                     }
                     i++;
                 }
-                File.WriteAllText("result.txt", JsonConvert.SerializeObject(words));
+                Console.WriteLine("Output format: 1 - JSON, 2 - Text");
+                if (Console.ReadLine() == "1")
+                    File.WriteAllText("result.txt", JsonConvert.SerializeObject(words));
+                else
+                    File.WriteAllLines("result.txt", words.Select(x => x.reading + " " + string.Join(",", x.meaning.Select(x => "\"" + x + "\""))));
             }
             else if (str == "3")
             {
