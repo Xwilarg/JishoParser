@@ -169,7 +169,7 @@ namespace JishoParser
                 if (Console.ReadLine() == "1")
                     File.WriteAllText("result.txt", JsonConvert.SerializeObject(words));
                 else
-                    File.WriteAllLines("result.txt", words.Select(x => x.reading + " " + string.Join(",", x.meaning.Select(x => "\"" + x + "\""))));
+                    File.WriteAllLines("result.txt", words.Select(x => x.reading + "$" + string.Join(",", x.meaning.Select(x => "\"" + x + "\""))));
             }
             else if (str == "3")
             {
